@@ -10,7 +10,7 @@ public class BtnInput : MonoBehaviour {
 	
 	// Update is called once per frame
 	void Update () {
-		if (Input.GetMouseButton (0) || Input.GetMouseButton (1)) {
+		if (DeviceInputManager.GetMouseButton (0) || DeviceInputManager.GetMouseButton (1)) {
 			SyncParam ();
 		}
 	}
@@ -19,8 +19,8 @@ public class BtnInput : MonoBehaviour {
 	{
 		targetZoom = mouseOrbit.Zoom;
 		targetRotY = mouseOrbit.RotateY;
-		targetPanX = mouseOrbit.PanX;
-		targetPanY = mouseOrbit.PanY;
+//		targetPanX = mouseOrbit.PanX;
+//		targetPanY = mouseOrbit.PanY;
 	}
 
 	public float targetZoom = 0;
@@ -51,33 +51,37 @@ public class BtnInput : MonoBehaviour {
 			mouseOrbit.Zoom = v;
 		});
 	}
+
+	LTDescr rotTwn;
 	public void RotateY(float d)
 	{
+		if (rotTwn != null) {
+			LeanTween.cancel (rotTwn.uniqueId);
+		}
+
 		float to = targetRotY + d * rotateSensitivity;
 		targetRotY = to;
-		LeanTween.value (mouseOrbit.RotateY, to, 0.5f).setEase(LeanTweenType.easeOutSine).setOnUpdate ((v) => {
+		rotTwn = LeanTween.value (mouseOrbit.RotateY, to, 0.5f).setEase (LeanTweenType.easeOutSine).setOnUpdate ((v) => {
 			mouseOrbit.RotateY = v;
 		});
 	}
 	public void PanX(float d)
 	{
-		float to = targetPanX + d * panSensitivity;
-		targetPanX = to;
-		LeanTween.value (mouseOrbit.PanX, to, 0.5f).setEase(LeanTweenType.easeOutSine).setOnUpdate ((v) => {
-			mouseOrbit.PanX = v;
-		});
+		LeanTween.cancel (mouseOrbit.gameObject);
+		Vector3 toPos = mouseOrbit.transform.position + mouseOrbit.transform.rotation * new Vector3 (d * panSensitivity, 0,0);
+		LeanTween.move (mouseOrbit.gameObject, toPos, 0.5f).setEase (LeanTweenType.easeOutSine);
 	}
 	public void PanY(float d)
 	{
-		float to = targetPanY + d * panSensitivity;
-		targetPanY = to;
-		LeanTween.value (mouseOrbit.PanY, to, 0.5f).setEase(LeanTweenType.easeOutSine).setOnUpdate ((v) => {
-			mouseOrbit.PanY = v;
-		});
+		LeanTween.cancel (mouseOrbit.gameObject);
+		Vector3 toPos = mouseOrbit.transform.position + mouseOrbit.transform.rotation * new Vector3 (0, d * panSensitivity,0);
+		LeanTween.move (mouseOrbit.gameObject, toPos, 0.5f).setEase (LeanTweenType.easeOutSine);
 	}
 	public void MoveZ(float d)
 	{
-		mouseOrbit.MoveZ(d*panSensitivity);
+		LeanTween.cancel (mouseOrbit.gameObject);
+		Vector3 toPos = mouseOrbit.transform.position + mouseOrbit.transform.rotation * new Vector3 (0, 0,d*panSensitivity);
+		LeanTween.move (mouseOrbit.gameObject, toPos, 0.5f).setEase (LeanTweenType.easeOutSine);
 	}
 
 	void Reset()

@@ -5,9 +5,14 @@ using System.Collections.Generic;
 public class MouseAndTouchOrbit: MonoBehaviour
 {
 	[SerializeField]
-	Transform target;
+	Transform camTrans;
+
+//	[SerializeField]
+//	Transform target;
 	public float distance = 10.0f;
 	public float zoomSensitivity = 10f;
+
+	public float keySensitivity = 0.1f;
 
 	public float xSpeed = 250.0f;
 	public float ySpeed = 120.0f;
@@ -25,11 +30,19 @@ public class MouseAndTouchOrbit: MonoBehaviour
 	public float zoomDistance = 0;
 	public Vector2 panDistance = Vector2.zero;
 
+	public Quaternion initRot;
+	public Vector3 initPos;
+
 	void Start ()
 	{
-		Vector3 angles = transform.eulerAngles;
-		x = angles.y;
-		y = angles.x;
+		initRot = this.transform.rotation;
+		initPos = this.transform.position;
+
+//		Vector3 angles = transform.eulerAngles;
+//		x = angles.y;
+//		y = angles.x;
+
+		distance = -camTrans.localPosition.z;
 
 		zoomDistance = distance;
 		// Make the rigid body not change rotation
@@ -41,6 +54,14 @@ public class MouseAndTouchOrbit: MonoBehaviour
 		centerDeltaList = new List<float> ();
 	}
 
+	void Update()
+	{
+		// fly
+		float fwd = Input.GetAxis("Vertical") * keySensitivity;
+		float right = Input.GetAxis ("Horizontal") * keySensitivity;
+		this.transform.position += this.transform.rotation * new Vector3 (right, 0, fwd);
+	}
+
 	private void LateUpdate ()
 	{
 		if (Input.GetKeyDown (KeyCode.D)) {
@@ -48,15 +69,18 @@ public class MouseAndTouchOrbit: MonoBehaviour
 			DeviceInputManager.Instance.debug = debug;
 		}
 
-		if (target == null)
+		if (camTrans == null)
 			return;
-		
+
+		//
+		panDistance = Vector3.zero;
+
 		MultiTouchUpdate ();
             
 		zoomDistance += DeviceInputManager.GetAxis ("Mouse ScrollWheel") * zoomSensitivity;
 		zoomDistance = Mathf.Clamp (zoomDistance, zoomMinLimit, zoomMaxLimit);
 
-		if (target && DeviceInputManager.GetMouseButton (0) && DeviceInputManager.touchCount == 1) {
+		if (camTrans && DeviceInputManager.GetMouseButton (0) && DeviceInputManager.touchCount == 1) {
 			// left mouse orbit
 			x += (float)(DeviceInputManager.GetAxis ("Mouse X") * xSpeed * 0.02);
 			y -= (float)(DeviceInputManager.GetAxis ("Mouse Y") * ySpeed * 0.02);
@@ -64,17 +88,18 @@ public class MouseAndTouchOrbit: MonoBehaviour
 			y = ClampAngle (y, yMinLimit, yMaxLimit);
 		}
 
-		if (target && DeviceInputManager.GetMouseButton (1)) {
+		if (camTrans && DeviceInputManager.GetMouseButton (1)) {
 			// right mouse Pan
-			panDistance += DeviceInputManager.GetTouch (0).deltaPosition * -0.01f;
+			panDistance = DeviceInputManager.GetTouch (0).deltaPosition * -0.01f;
 		}
+		this.transform.position += this.transform.rotation * new Vector3 (panDistance.x, panDistance.y, 0);
 
+		Vector3 position = new Vector3 (0.0f, 0.0f, -zoomDistance);
+		camTrans.localPosition = position;
+		
 		Quaternion rotation = Quaternion.Euler (y, x, 0);
-		target.rotation = rotation;
-
-		Vector3 position = target.position + rotation * (new Vector3 (0.0f, 0.0f, -zoomDistance));
-		transform.rotation = rotation;
-		transform.position = position + transform.rotation * new Vector3(panDistance.x, panDistance.y, 0);
+//		this.transform.rotation = rotation;
+		this.transform.rotation = initRot * rotation;
 	}
 
 	public bool IsTouchInput()
@@ -170,6 +195,7 @@ public class MouseAndTouchOrbit: MonoBehaviour
 		set{ x = value; }
 		get{ return x; }
 	}
+
 	public float Zoom{
 		set{ zoomDistance = value; }
 		get{ return zoomDistance; }
@@ -177,9 +203,17 @@ public class MouseAndTouchOrbit: MonoBehaviour
 
 	public float PanX
 	{
-		set{ panDistance.x = value; }
-		get{ return panDistance.x; }
+		set{ 
+			panDistance.x = value;
+			this.transform.position = this.transform.InverseTransformDirection(new Vector3(panDistance.x, 0, 0));
+		}
+		get{ 
+			Vector3 p = this.transform.InverseTransformDirection (this.transform.position);
+			return p.x;
+//			return panDistance.x;
+		}
 	}
+
 	public float PanY
 	{
 		set{ panDistance.y = value; }
@@ -190,25 +224,23 @@ public class MouseAndTouchOrbit: MonoBehaviour
 	public void MoveZ(float v)
 	{
 			_z = v;
-			target.position += target.rotation * new Vector3(0, 0, _z);
+			this.transform.position += this.transform.rotation * new Vector3(0, 0, _z);
 	}
 
 	public void Reset()
 	{
+		LeanTween.cancelAll ();
+
 		zoomDistance = distance;
-		x = 0;
-		y = 0;
 		panDistance = Vector2.zero;
 
-		var rotation = Quaternion.Euler (y, x, 0);
-		var position = rotation * (new Vector3 (0.0f, 0.0f, -zoomDistance)) + target.position;
+		x = 0;
+		y = 0;
+		
+		this.transform.rotation = initRot;
+		this.transform.position = initPos;
 
-		transform.rotation = rotation;
-		transform.position = position + transform.rotation * new Vector3(panDistance.x, panDistance.y, 0);
-
-		target.rotation = rotation;
-		target.position = Vector3.zero;
-
+		camTrans.localPosition = new Vector3 (0,0, distance);
 	}
 
 	public bool debug = false;
